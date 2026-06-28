@@ -1,0 +1,183 @@
+#!/usr/bin/env node
+'use strict';
+
+const fs  = require('fs');
+const os  = require('os');
+const { execSync } = require('child_process');
+
+// ── stdin ──────────────────────────────────────────────────────────────────
+let raw = '';
+try { raw = fs.readFileSync(0, 'utf8'); } catch (_) {}
+let data = {};
+try { data = JSON.parse(raw || '{}'); } catch (_) {}
+
+// ── ANSI ───────────────────────────────────────────────────────────────────
+const R    = '\x1b[0m';
+const BOLD = '\x1b[1m';
+const rgb  = (r, g, b) => `\x1b[38;2;${r};${g};${b}m`;
+
+const C = {
+  model:  rgb(203,166,247),
+  effort: rgb(88, 91, 112),
+  sep:    rgb(49, 50, 68),
+  ctx:    rgb(137,180,250),
+  ctxHi:  rgb(249,226,175),
+  tokIn:  rgb(137,220,235),
+  tokOut: rgb(203,166,247),
+  dim:    rgb(69, 71, 90),
+  repo:   rgb(249,226,175),
+  branch: rgb(137,180,250),
+  untr:   rgb(243,139,168),
+  modif:  rgb(166,227,161),
+  verOk:  rgb(166,227,161),
+  verNew: rgb(249,226,175),
+};
+
+// ── width helpers ──────────────────────────────────────────────────────────
+const stripAnsi = s => s.replace(/\x1b\[[0-9;]*m/g, '');
+const vlen = s => {
+  let w = 0;
+  for (const ch of stripAnsi(s)) {
+    const cp = ch.codePointAt(0);
+    w += cp > 0x2E7F ? 2 : 1; // emoji/CJK = 2 cols
+  }
+  return w;
+};
+
+// pad left and right content to fill the terminal width
+const termW = process.stdout.columns || 120;
+const row = (left, right) => {
+  const gap = Math.max(2, termW - vlen(left) - vlen(right));
+  return left + ' '.repeat(gap) + right + R;
+};
+
+const SEP = `  ${C.sep}|${R}  `;
+const ktok = n => n >= 1000 ? `${(n / 1000).toFixed(0)}k` : String(n || 0);
+
+// ── git helper ─────────────────────────────────────────────────────────────
+const cwd = (data.workspace && data.workspace.current_dir) || data.cwd || process.cwd();
+const git  = args => {
+  try {
+    return execSync(`git -C "${cwd}" ${args}`, {
+      stdio: ['ignore', 'pipe', 'ignore'], timeout: 1000,
+    }).toString().trim();
+  } catch (_) { return ''; }
+};
+
+// ══════════════════════════════════════════════════════════════════════════
+// LINE 1:  Model (effort)  |  Context X%  |  200K 🟢      In/Out: Xk/Xk (total: Xk)
+// ══════════════════════════════════════════════════════════════════════════
+
+const modelName = (data.model && (data.model.display_name || data.model.id)) || 'Claude';
+
+// effort: exposed as top-level effortLevel in Claude Code settings/status
+const effortRaw = data.effortLevel
+  || (data.model && (data.model.thinking_effort || data.model.thinkingEffort || data.model.effort))
+  || data.thinking_effort || '';
+const effortStr = effortRaw ? ` ${C.effort}(${effortRaw})${R}` : '';
+
+// context % — parse last usage block from transcript
+let inputTok = 0, outputTok = 0;
+try {
+  const tp = data.transcript_path;
+  if (tp && fs.existsSync(tp)) {
+    const lines = fs.readFileSync(tp, 'utf8').trim().split('\n');
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        const u = JSON.parse(lines[i]);
+        const usage = u.message && u.message.usage;
+        if (usage && usage.input_tokens != null) {
+          inputTok  = (usage.input_tokens || 0)
+                    + (usage.cache_read_input_tokens    || 0)
+                    + (usage.cache_creation_input_tokens || 0);
+          outputTok = usage.output_tokens || 0;
+          break;
+        }
+      } catch (_) {}
+    }
+  }
+} catch (_) {}
+
+// fall back to cumulative cost totals if transcript gave nothing
+if (!inputTok && data.cost) {
+  inputTok  = (data.cost.total_input_tokens              || 0)
+            + (data.cost.total_cache_read_input_tokens    || 0)
+            + (data.cost.total_cache_creation_input_tokens || 0);
+  outputTok = data.cost.total_output_tokens || 0;
+}
+
+const ctxPct   = Math.min(100, Math.round((inputTok / 200_000) * 100));
+const ctxColor = ctxPct >= 85 ? C.ctxHi : C.ctx;
+const over200k = data.exceeds_200k_tokens || ctxPct >= 100;
+
+const l1left = [
+  `${BOLD}${C.model}${modelName}${R}${effortStr}`,
+  `${ctxColor}Context ${ctxPct}%${R}`,
+  `200K ${over200k ? '🔴' : '🟢'}`,
+].join(SEP);
+
+const totalTok = inputTok + outputTok;
+const l1right = `${C.dim}In/Out: ${R}${C.tokIn}${ktok(inputTok)}${R}${C.sep}/${R}${C.tokOut}${ktok(outputTok)}${R}${C.dim}  (total: ${ktok(totalTok)})${R}`;
+
+// ══════════════════════════════════════════════════════════════════════════
+// LINE 2:  repo | branch | ?N !N        version: X  latest: X
+// ══════════════════════════════════════════════════════════════════════════
+
+let l2left;
+const branch = git('rev-parse --abbrev-ref HEAD');
+
+if (branch) {
+  const root     = git('rev-parse --show-toplevel');
+  const repoName = root ? root.replace(/\\/g, '/').split('/').pop() : '';
+
+  const statusOut = git('status --porcelain');
+  let untracked = 0, modified = 0;
+  for (const l of (statusOut ? statusOut.split('\n') : [])) {
+    if (!l) continue;
+    if (l.startsWith('??')) untracked++;
+    else if (l[1] && l[1] !== ' ') modified++;
+  }
+
+  const filesStr = (!untracked && !modified)
+    ? `${C.dim}✔ clean${R}`
+    : [
+        untracked ? `${C.untr}?${untracked}${R}` : '',
+        modified  ? `${C.modif}!${modified}${R}`  : '',
+      ].filter(Boolean).join(' ');
+
+  l2left = [
+    `${BOLD}${C.repo}${repoName}${R}`,
+    `${C.branch}${branch}${R}`,
+    filesStr,
+  ].join(SEP);
+} else {
+  const shortCwd = cwd.replace(/\\/g, '/');
+  l2left = `${C.dim}— no repo —${R}${SEP}${C.dim}${shortCwd}${R}`;
+}
+
+// version check — cached to tmp for 1 h to avoid npm round-trip every render
+const currentVer = data.version || '';
+let latestVer = '';
+try {
+  const cache = JSON.parse(fs.readFileSync(`${os.tmpdir()}/ccver.json`, 'utf8'));
+  latestVer = (Date.now() - cache.ts < 3_600_000) ? cache.ver : '';
+} catch (_) {}
+
+if (!latestVer) {
+  try {
+    latestVer = execSync('npm view @anthropic-ai/claude-code version', {
+      stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000,
+    }).toString().trim();
+    fs.writeFileSync(`${os.tmpdir()}/ccver.json`, JSON.stringify({ ver: latestVer, ts: Date.now() }));
+  } catch (_) {}
+}
+
+const isStale    = latestVer && currentVer && latestVer !== currentVer;
+const verCurCol  = C.verOk;
+const verLatCol  = isStale ? C.verNew : C.verOk;
+const verLatText = latestVer ? `${verLatCol}${latestVer}${isStale ? ' ↑' : ''}${R}` : `${C.dim}…${R}`;
+
+const l2right = `${C.dim}version: ${R}${verCurCol}${currentVer}${R}  ${C.dim}latest: ${R}${verLatText}`;
+
+// ── output ─────────────────────────────────────────────────────────────────
+process.stdout.write(row(l1left, l1right) + '\n' + row(l2left, l2right) + '\n');

@@ -1,0 +1,9 @@
+# Local, machine-specific — never committed
+*.local
+secrets.local
+
+# Backups created during apply
+*.bak.*
+
+# Sandbox rehearsal output
+.sandbox/
