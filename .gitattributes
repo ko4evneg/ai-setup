@@ -1,0 +1,4 @@
+# Always use LF (Linux) line endings for all text files, on every platform.
+# Keeps commits/checkouts consistent and prevents CRLF from breaking the bash
+# alias payload (CRLF makes `source claude-aliases.sh` fail on Unix).
+* text=auto eol=lf
