@@ -28,8 +28,9 @@ follows the procedure below. Nothing is written until you approve a preview.
 | statusline | `config/statusline/statusline.js` | `${CLAUDE_HOME}/statusline.js` | copy  | `node` on PATH            |
 | settings   | `config/settings/settings.json`   | `${CLAUDE_HOME}/settings.json` | merge | `node` (wires statusline) |
 
-- `${CLAUDE_HOME}` is the live Claude config directory for the current OS/user
-  (e.g. `C:/Users/<you>/.claude` on Windows, `~/.claude` elsewhere). Resolved
+- `${CLAUDE_HOME}` is the live Claude config directory: **`$CLAUDE_CONFIG_DIR` if
+  that environment variable is set**, otherwise the OS default
+  (`C:/Users/<you>/.claude` on Windows, `~/.claude` elsewhere). Resolved
   automatically — never hardcode it.
 - **merge**: deep-merge JSON into any existing file; repo values win on
   conflicts; keep unknown local keys.
@@ -40,16 +41,21 @@ follows the procedure below. Nothing is written until you approve a preview.
 
 ## Setup procedure (Claude follows this on "set me up")
 
-1. **Detect environment.** Determine the OS and resolve `${CLAUDE_HOME}` (the live
-   Claude config dir). Confirm Claude Code is installed and authenticated; if not,
-   stop and point to Prerequisites. Write all paths with forward slashes — never
-   Windows backslashes.
+1. **Detect environment.** Determine the OS and resolve `${CLAUDE_HOME}`: use
+   `$CLAUDE_CONFIG_DIR` if that variable is set, otherwise the OS-default
+   `~/.claude` (`C:/Users/<you>/.claude` on Windows). Confirm Claude Code is
+   installed and authenticated; if not, stop and point to Prerequisites. Write all
+   paths with forward slashes — never Windows backslashes.
 2. **Check dependencies.** Detect whether `node` is on PATH. Record it; it gates
    the status-line category below.
 3. **Read this manifest.** For each row: source, destination, mode, requirement.
-4. **Resolve placeholders.** Phase 1 has exactly one: `${CLAUDE_HOME}`. Replace it
-   in payload content with the resolved absolute path (forward slashes). No
-   secrets are requested.
+4. **Resolve placeholders.** Replace the **exact literal token `${CLAUDE_HOME}`**
+   (the only Phase 1 placeholder) with the resolved absolute path (forward
+   slashes). Do **not** scan for or rewrite any other `${...}` — e.g.
+   `statusline.js` contains JS template literals like `${ctxPct}` that must stay
+   intact. Substitution applies only to merge/templated payloads; **copy-mode
+   payloads are written byte-for-byte** with no substitution. No secrets are
+   requested.
 5. **Preview.** Show the user, per category: destination path; create / merge /
    overwrite; what will be backed up; and any category that will be **skipped**
    because its requirement is unmet (e.g. status line skipped — `node` not found).

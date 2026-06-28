@@ -48,6 +48,9 @@ minimal:
   it).
 - Apply `settings.json` (merge) and `statusline.js` (copy) with timestamped
   backups; preview before writing; verify after.
+- The status line requires `node` at runtime, so it's **gated on `node`** — setup
+  skips it with a message when `node` is absent. Node is optional (needed only for
+  the status line, not setup overall).
 - README + setup-guide, including a manual sandbox rehearsal.
 
 **Deferred to later phases (built when first needed):**
@@ -145,17 +148,21 @@ will be relocated under `config/` per the layout above:
 
 ## Setup procedure (what CLAUDE.md instructs Claude to do)
 
-1. **Detect environment** — determine OS and the live Claude config directory.
-   Confirm Claude Code is installed/authed; if not, point to README prereqs and
-   stop.
+1. **Detect environment** — determine OS and the live Claude config directory
+   (`$CLAUDE_CONFIG_DIR` if set, else the OS-default `~/.claude`). Confirm Claude
+   Code is installed/authed; if not, point to README prereqs and stop.
 2. **Read manifest** — enumerate categories (source, destination, apply-mode,
    declared secrets).
-3. **Resolve placeholders** — scan tracked files for `${NAME}` tokens and split
-   them by class: **auto-resolved** tokens (reserved names like `${CLAUDE_HOME}`,
-   `${OS}`) are filled from step-1 environment detection with no prompt;
-   **secret** tokens are resolved from the optional gitignored `secrets.local`
-   cache or environment, then the user is prompted for anything still missing.
-   Never write resolved secret values back into tracked files.
+3. **Resolve placeholders** — substitute only **known reserved/declared tokens**,
+   by exact literal match, and only in **templated/merge payloads**.
+   **Auto-resolved** tokens (reserved names like `${CLAUDE_HOME}`, `${OS}`) are
+   filled from step-1 environment detection with no prompt; **secret** tokens
+   (declared in the manifest / `secrets.example`) are resolved from the optional
+   gitignored `secrets.local` cache or environment, then the user is prompted for
+   anything still missing. Do **not** treat every `${...}` as a placeholder:
+   `copy`-mode payloads are written byte-for-byte, and files like `statusline.js`
+   contain JS template literals (`${ctxPct}`, …) that must be left intact. Never
+   write resolved secret values back into tracked files.
 4. **Preview & confirm** — show what will be created vs. merged vs. overwritten,
    and what gets backed up. Wait for go-ahead.
 5. **Apply each category** per its mode (see below).
@@ -179,7 +186,8 @@ All placeholders use `${NAME}` syntax and fall into two classes:
 
 - **Auto-resolved** — reserved names filled from environment detection (step 1),
   with no user prompt. Initial reserved set:
-  - `${CLAUDE_HOME}` → the live Claude config directory for the current OS/user.
+  - `${CLAUDE_HOME}` → the live Claude config directory: `$CLAUDE_CONFIG_DIR` if
+    set, else the OS default for the current user.
   - `${OS}` → the detected platform, when a step needs to branch on it.
   Auto-resolved values are emitted with cross-platform separators (forward
   slashes). Example: the seed `settings.json` wires the status line as
@@ -187,7 +195,10 @@ All placeholders use `${NAME}` syntax and fall into two classes:
   under the live config dir at apply time. (The current seed file uses a bare
   `CLAUDE_HOME` with a Windows `\` separator; implementation normalizes it to
   `${CLAUDE_HOME}` + forward slash.)
-- **Secrets** — every non-reserved `${NAME}`; resolved interactively (see below).
+- **Secrets** — `${NAME}` tokens **declared in the manifest / `secrets.example`**
+  (not arbitrary `${...}`); resolved interactively (see below). Tokens in
+  `copy`-mode payloads or code — e.g. JS template literals in `statusline.js` —
+  are never treated as placeholders.
 
 The manifest's "Secrets" column lists only secret tokens. Reserved auto-resolved
 names are documented here, not per-category.

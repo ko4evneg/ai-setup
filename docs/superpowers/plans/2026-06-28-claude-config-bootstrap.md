@@ -14,11 +14,31 @@
 - **Secrets never committed:** Phase 1 has no secrets; no real credential ever lands in the repo.
 - **Idempotent & safe:** re-runnable; back up any existing destination file to `<file>.bak.<unix-timestamp>` before overwrite/merge.
 - **Trigger:** talk to `CLAUDE.md` — the phrase is "set me up". No slash command, no install script.
-- **Node.js assumed present** (Claude Code requires it). Any helper would be `.mjs` — none in Phase 1.
+- **Node.js optional** — required only for the status line (it runs as a Node script); the native Claude binary bundles no general-purpose `node`. Setup gates the status line on `node` and skips it with a message when absent. Any helper would be `.mjs` — none in Phase 1.
 - **Only placeholder in Phase 1:** `${CLAUDE_HOME}` → the live Claude config dir.
 - **Driver is authoritative:** `CLAUDE.md` holds the procedure; `docs/` is the human companion.
 
 ---
+
+## Implementation deltas (post-plan)
+
+The shipped `CLAUDE.md`, `README.md`, and `docs/setup-guide.md` are the source of
+truth; they extend the task code-blocks below with approved refinements made
+during execution:
+
+- **Node is optional; the status line is gated on it.** The shipped manifest has a
+  **Requires** column; when `node` is not on PATH, setup skips the status line
+  with a message instead of failing. This supersedes the Global Constraint
+  "Node.js assumed present" — the native Claude binary bundles no general-purpose
+  `node`, so Node is needed only for the status line, not for setup overall.
+- **`${CLAUDE_HOME}` honors `$CLAUDE_CONFIG_DIR`** when set, else the OS-default
+  `~/.claude`.
+- **Placeholder resolution is a literal `${CLAUDE_HOME}` swap.** `copy`-mode
+  payloads (e.g. `statusline.js`, which contains JS template literals) are written
+  byte-for-byte — no general `${...}` scan.
+
+The task steps below predate these refinements; follow the shipped files where
+they differ.
 
 ## File Structure
 
