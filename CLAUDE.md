@@ -71,9 +71,13 @@ follows the procedure below. Nothing is written until you approve a preview.
    merge / overwrite / install); what will be backed up; and any caveat (e.g.
    `node` not found → the status line applies but won't render until Node is
    installed). **Also ask whether to include the optional `memory` step** (disable
-   auto-memory in the home dir). If yes, check
-   `${CLAUDE_HOME}/projects/<home-dir-project>/memory/` for already-accumulated
-   memory and **offer to purge it**. Wait for explicit approval before writing
+   auto-memory in the home dir). If yes, find the home dir's project-memory folder
+   and **offer to purge it**: it's at `${CLAUDE_HOME}/projects/<H>/memory/`, where
+   `<H>` is the **home directory** path with the drive colon and every `/` or `\`
+   replaced by `-` (e.g. `C:\Users\Alex` → `C--Users-Alex`; `/home/alex` →
+   `-home-alex`). **Don't guess the name — list `${CLAUDE_HOME}/projects/` and pick
+   the entry that decodes to exactly the home dir** (no extra trailing segments,
+   e.g. *not* `C--Users-Alex-home`). Wait for explicit approval before writing
    anything.
 6. **Apply** each category **in manifest order (aliases first)**. Back up any
    existing destination file to `<destination>.bak.<unix-timestamp>` first.
