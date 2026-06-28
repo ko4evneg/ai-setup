@@ -36,6 +36,30 @@ This replaces the original Windows-only `install.ps1` framing.
 - A mandatory per-OS install script as the entry point.
 - Generic multi-user templating — this is the user's own opinionated config.
 
+## Phasing
+
+Implementation is incremental. **Phase 1 (the current plan)** is deliberately
+minimal:
+
+- Repo scaffold + relocate/normalize the two seed payloads.
+- A single driver file, `CLAUDE.md`, that contains the manifest **inline** (as a
+  section) plus the apply procedure — no separate `manifest.md` yet.
+- `${CLAUDE_HOME}` is the only placeholder resolved (`${OS}` only if a step needs
+  it).
+- Apply `settings.json` (merge) and `statusline.js` (copy) with timestamped
+  backups; preview before writing; verify after.
+- README + setup-guide, including a manual sandbox rehearsal.
+
+**Deferred to later phases (built when first needed):**
+
+- Interactive secrets machinery (`secrets.example`, `secrets.local`, prompting,
+  the manifest "Secrets" column) — added when the first MCP server or hook needs
+  a token.
+- Splitting the manifest out into a standalone `manifest.md` once categories grow.
+- Any deterministic apply helper script, if hand-application proves fragile.
+
+The sections below describe the full design; Phase 1 implements the subset above.
+
 ## Locked decisions
 
 | Decision | Choice |
