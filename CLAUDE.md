@@ -38,6 +38,8 @@ follows the procedure below. Nothing is written until you approve a preview.
 - **Requires**: a category whose requirement is unmet is skipped with a clear
   message (see procedure).
 - Existing destination files are backed up first.
+- **Apply order = manifest order, top-to-bottom.** The **status line is the
+  first customization step**; future customizations append below it.
 
 ## Setup procedure (Claude follows this on "set me up")
 
@@ -60,7 +62,8 @@ follows the procedure below. Nothing is written until you approve a preview.
    overwrite; what will be backed up; and any category that will be **skipped**
    because its requirement is unmet (e.g. status line skipped — `node` not found).
    Wait for explicit approval before writing anything.
-6. **Apply** each category whose requirement is met:
+6. **Apply** each category whose requirement is met, **in manifest order (status
+   line first)**:
    - Back up any existing destination file to `<destination>.bak.<unix-timestamp>`
      first.
    - **statusline** (copy, requires `node`): write
@@ -84,9 +87,11 @@ requirement is met.
 
 ## Scope notes
 
-- Phase 1 ships the two payloads above (both currently serve the status line).
-  New categories are added by dropping a payload under `config/` and adding a
-  manifest row — the procedure does not change.
+- The **status line is the first customization step** — top of the manifest and
+  the first thing applied. Phase 1 ships the two payloads above (both serve the
+  status line). New customizations are added by dropping a payload under
+  `config/` and appending a manifest row **below** the status line — the
+  procedure does not change.
 - **Secrets** (e.g. MCP tokens) are not handled yet; they'll be added with
   interactive prompting when the first payload that needs one is introduced. Real
   secrets are never committed to this repo.

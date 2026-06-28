@@ -7,3 +7,6 @@ secrets.local
 
 # Sandbox rehearsal output
 .sandbox/
+
+# IDE
+.idea/
