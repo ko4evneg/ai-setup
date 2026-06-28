@@ -43,7 +43,9 @@ This replaces the original Windows-only `install.ps1` framing.
 | Execution model | Claude-driven, config only. Install/auth is a manual prereq. |
 | Trigger | Talk to `CLAUDE.md` ("set me up"); no slash command or packaged skill. |
 | Scope | Extensible via a manifest; categories defined/grown incrementally. |
-| Secrets | `${PLACEHOLDER}` tokens in tracked files, resolved interactively; never committed. Optional gitignored cache for re-runs. |
+| Placeholders | Two classes: **auto-resolved** (paths/env, e.g. `${CLAUDE_HOME}`) filled from environment detection, no prompt; **interactive secrets** (`${TOKEN}`) prompted. |
+| Secrets | Secret tokens in tracked files, resolved interactively; never committed. Optional gitignored cache for re-runs. |
+| Path output | Applied files use cross-platform separators (forward slashes); never emit Windows-specific backslash paths. |
 | Manifest format | Markdown table (human- and Claude-readable). |
 | settings.json / MCP | `merge` apply mode. |
 | statusline / keybindings | `copy` apply mode (overwrite + backup). |
@@ -62,7 +64,9 @@ This replaces the original Windows-only `install.ps1` framing.
 - **Idempotent & safe.** Re-runnable; back up existing target files before
   touching them.
 - **Cross-platform at apply time.** Claude resolves the config dir and adapts
-  steps for the current OS when it runs.
+  steps for the current OS when it runs. Auto-resolved path placeholders (e.g.
+  `${CLAUDE_HOME}`) are filled from environment detection, and applied output
+  uses forward-slash separators — never Windows-specific backslashes.
 
 ## Repo layout
 
@@ -102,6 +106,19 @@ A Markdown table is the registry Claude reads to know what to apply. Example:
 `<claude-dir>` is resolved per-OS at apply time (e.g. `~/.claude` /
 `C:\Users\<user>\.claude`). Growing scope = add a row + the payload files.
 
+## Seed payloads (already in the repo)
+
+Two initial config payloads already exist at the repo root under `settings/` and
+will be relocated under `config/` per the layout above:
+
+- `settings/settings.json` → `config/settings/settings.json`. Wires the status
+  line; uses the `${CLAUDE_HOME}` auto-resolved placeholder (currently a bare
+  `CLAUDE_HOME` + `\` to be normalized). Apply mode: **merge**.
+- `settings/statusline.js` → `config/statusline/statusline.js`. A self-contained,
+  cross-platform Node status line (model/effort, context %, token in/out; repo /
+  branch / dirty counts; version-vs-latest with a 1h npm cache). Apply mode:
+  **copy**.
+
 ## Setup procedure (what CLAUDE.md instructs Claude to do)
 
 1. **Detect environment** — determine OS and the live Claude config directory.
@@ -109,10 +126,12 @@ A Markdown table is the registry Claude reads to know what to apply. Example:
    stop.
 2. **Read manifest** — enumerate categories (source, destination, apply-mode,
    declared secrets).
-3. **Collect secrets** — scan tracked files for `${PLACEHOLDER}` tokens; resolve
-   from the optional gitignored `secrets.local` cache or environment; prompt the
-   user for anything still missing. Never write real values back into tracked
-   files.
+3. **Resolve placeholders** — scan tracked files for `${NAME}` tokens and split
+   them by class: **auto-resolved** tokens (reserved names like `${CLAUDE_HOME}`,
+   `${OS}`) are filled from step-1 environment detection with no prompt;
+   **secret** tokens are resolved from the optional gitignored `secrets.local`
+   cache or environment, then the user is prompted for anything still missing.
+   Never write resolved secret values back into tracked files.
 4. **Preview & confirm** — show what will be created vs. merged vs. overwritten,
    and what gets backed up. Wait for go-ahead.
 5. **Apply each category** per its mode (see below).
@@ -130,9 +149,28 @@ A Markdown table is the registry Claude reads to know what to apply. Example:
   `keybindings.json`, standalone hook scripts.
 - **`init`** — create only if absent; never clobber. Used for memory seed files.
 
+## Placeholders
+
+All placeholders use `${NAME}` syntax and fall into two classes:
+
+- **Auto-resolved** — reserved names filled from environment detection (step 1),
+  with no user prompt. Initial reserved set:
+  - `${CLAUDE_HOME}` → the live Claude config directory for the current OS/user.
+  - `${OS}` → the detected platform, when a step needs to branch on it.
+  Auto-resolved values are emitted with cross-platform separators (forward
+  slashes). Example: the seed `settings.json` wires the status line as
+  `"command": "node ${CLAUDE_HOME}/statusline.js"`, resolving to an absolute path
+  under the live config dir at apply time. (The current seed file uses a bare
+  `CLAUDE_HOME` with a Windows `\` separator; implementation normalizes it to
+  `${CLAUDE_HOME}` + forward slash.)
+- **Secrets** — every non-reserved `${NAME}`; resolved interactively (see below).
+
+The manifest's "Secrets" column lists only secret tokens. Reserved auto-resolved
+names are documented here, not per-category.
+
 ## Secrets handling
 
-- Tracked files contain `${NAME}` placeholders.
+- Tracked files contain secret `${NAME}` placeholders.
 - `secrets/secrets.example` documents each required secret: name, purpose, where
   to obtain it.
 - At apply time, resolution order: `secrets.local` cache → environment → prompt
@@ -181,3 +219,4 @@ There is no application to run, so the guardrails are procedural:
 - Exact initial set of config categories to ship in `config/` (grows over time).
 - Precise memory destination path convention across OSes.
 - Whether `secrets.local` caching is on by default or opt-in per run.
+- Final reserved auto-resolved token set beyond `${CLAUDE_HOME}` / `${OS}`.
