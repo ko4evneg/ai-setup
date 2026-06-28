@@ -8,10 +8,10 @@ the config for you.
 
 - **Claude Code** installed and authenticated (the native binary is fine). A
   running Claude can't install or authenticate itself — do this once, manually.
-- **Node.js** — required *only for the status line* (it's a Node script). Native
-  Claude doesn't bundle a general-purpose `node`; install Node.js LTS if you want
-  the status line. Without it, setup skips the status line and configures
-  everything else.
+- **Node.js** — needed *only to render the status line* (it's a Node script).
+  Native Claude doesn't bundle a general-purpose `node`; install Node.js LTS to
+  see the status line. Without it, **everything still applies** — the status line
+  just won't draw until Node is on PATH.
 
 ## Quickstart
 
@@ -25,10 +25,14 @@ cd ai-setup
 Claude reads `CLAUDE.md`, shows a preview of exactly what it will write and where,
 and applies it only after you approve. Existing files are backed up first.
 
-## What it configures (Phase 1)
+## What it configures
 
-- A two-line **status line** (`config/statusline/statusline.js`) wired up via
-  `settings.json` — applied only if `node` is on your PATH.
+1. **Status line** — a two-line bar (`config/statusline/statusline.js`) wired up
+   via `settings.json`. Renders only when `node` is on PATH.
+2. **Settings** — your `settings.json` prefs (model, effort, theme, plugin
+   enable-flags, …), deep-merged into your live config.
+3. **Plugins** — installs the **superpowers** plugin (required) from the official
+   marketplace; the settings flag only *enables* it, this step *fetches* it.
 
 The set of things it configures grows over time; see `CLAUDE.md` for the live
 manifest and `docs/setup-guide.md` for details, a self-test, and troubleshooting.

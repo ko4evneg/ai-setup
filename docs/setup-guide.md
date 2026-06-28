@@ -6,18 +6,20 @@ The authoritative procedure lives in `CLAUDE.md`; this is the human companion.
 ## Requirements
 
 - Claude Code installed + authenticated (the native binary is fine).
-- **Node.js** only for the status line. The status-line payload runs as
+- **Node.js** only to *render* the status line. The status-line payload runs as
   `node ${CLAUDE_HOME}/statusline.js`, so it needs `node` on PATH. Native Claude
-  installs don't include a general-purpose `node`; install Node.js LTS to enable
-  the status line. Setup detects `node` and skips the status line (with a message)
-  if it's missing.
+  installs don't include a general-purpose `node`; install Node.js LTS to see the
+  bar. If `node` is missing, **everything still applies** — the status line just
+  won't draw until Node is installed.
+- **`claude` CLI + network** for the plugins step (to install superpowers).
 
 ## What each category does
 
-| Category   | Source                            | Destination                    | Mode  | Requires | Effect |
-|------------|-----------------------------------|--------------------------------|-------|----------|--------|
-| statusline | `config/statusline/statusline.js` | `${CLAUDE_HOME}/statusline.js` | copy  | `node`   | Installs the two-line status-line script. |
-| settings   | `config/settings/settings.json`   | `${CLAUDE_HOME}/settings.json` | merge | `node`   | Deep-merges the `statusLine` wiring into your settings; your other keys are preserved. |
+| Category   | Source                            | Destination                    | Mode    | Requires | Effect |
+|------------|-----------------------------------|--------------------------------|---------|----------|--------|
+| statusline | `config/statusline/statusline.js` | `${CLAUDE_HOME}/statusline.js` | copy    | `node` to render | Installs the two-line status-line script. |
+| settings   | `config/settings/settings.json`   | `${CLAUDE_HOME}/settings.json` | merge   | —        | Deep-merges your prefs (model, effort, theme, `statusLine` wiring, plugin enable-flags); your other keys are preserved. |
+| plugins    | `anthropics/claude-plugins-official` → `superpowers` | `${CLAUDE_HOME}/plugins/` | install | `claude` CLI + network | Installs the **superpowers** plugin (required). The settings flag only enables it; this fetches it. |
 
 `${CLAUDE_HOME}` is your live Claude config directory (`C:/Users/<you>/.claude` on
 Windows, `~/.claude` elsewhere), resolved automatically at setup. Paths are
@@ -49,8 +51,12 @@ most recent `.bak.*`.
 
 ## Troubleshooting
 
-- **Status line was skipped:** `node` wasn't on PATH at setup. Install Node.js
-  LTS, restart your shell / Claude session, and re-run "set me up".
+- **Status line doesn't render:** `node` isn't on PATH. The files are still in
+  place — install Node.js LTS, restart your shell / Claude session, and it'll draw
+  (no need to re-run "set me up").
+- **Superpowers not loaded:** confirm `claude plugin list` shows
+  `superpowers@claude-plugins-official`; if not, re-run the plugins step
+  (`claude plugin install superpowers@claude-plugins-official`) and restart.
 - **Status line doesn't appear after applying:** restart Claude Code. Confirm
   `${CLAUDE_HOME}/settings.json` has `statusLine.command` pointing at the real
   `statusline.js` path, and that `node` is on PATH.

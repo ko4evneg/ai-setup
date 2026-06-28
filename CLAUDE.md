@@ -25,8 +25,9 @@ follows the procedure below. Nothing is written until you approve a preview.
 
 | Category   | Source                            | Destination                    | Mode  | Requires                  |
 |------------|-----------------------------------|--------------------------------|-------|---------------------------|
-| statusline | `config/statusline/statusline.js` | `${CLAUDE_HOME}/statusline.js` | copy  | `node` on PATH            |
-| settings   | `config/settings/settings.json`   | `${CLAUDE_HOME}/settings.json` | merge | `node` (wires statusline) |
+| statusline | `config/statusline/statusline.js` | `${CLAUDE_HOME}/statusline.js` | copy    | `node` to render       |
+| settings   | `config/settings/settings.json`   | `${CLAUDE_HOME}/settings.json` | merge   | —                      |
+| plugins    | `anthropics/claude-plugins-official` → `superpowers` | `${CLAUDE_HOME}/plugins/` | install | `claude` CLI + network |
 
 - `${CLAUDE_HOME}` is the live Claude config directory: **`$CLAUDE_CONFIG_DIR` if
   that environment variable is set**, otherwise the OS default
@@ -35,8 +36,11 @@ follows the procedure below. Nothing is written until you approve a preview.
 - **merge**: deep-merge JSON into any existing file; repo values win on
   conflicts; keep unknown local keys.
 - **copy**: overwrite the destination.
-- **Requires**: a category whose requirement is unmet is skipped with a clear
-  message (see procedure).
+- **install**: register the marketplace and install the plugin via the `claude`
+  CLI (not a file copy); idempotent — safe to re-run.
+- **Requires**: `node` is needed only to *render* the status line — every payload
+  still applies without it (the status line just won't show until Node is on
+  PATH). The `plugins` step needs the `claude` CLI + network.
 - Existing destination files are backed up first.
 - **Apply order = manifest order, top-to-bottom.** The **status line is the
   first customization step**; future customizations append below it.
@@ -48,8 +52,9 @@ follows the procedure below. Nothing is written until you approve a preview.
    `~/.claude` (`C:/Users/<you>/.claude` on Windows). Confirm Claude Code is
    installed and authenticated; if not, stop and point to Prerequisites. Write all
    paths with forward slashes — never Windows backslashes.
-2. **Check dependencies.** Detect whether `node` is on PATH. Record it; it gates
-   the status-line category below.
+2. **Check dependencies.** Detect whether `node` is on PATH — it determines only
+   whether the status line will *render* (every payload still applies without it).
+   The `plugins` step needs the `claude` CLI + network.
 3. **Read this manifest.** For each row: source, destination, mode, requirement.
 4. **Resolve placeholders.** Replace the **exact literal token `${CLAUDE_HOME}`**
    (the only Phase 1 placeholder) with the resolved absolute path (forward
@@ -58,28 +63,34 @@ follows the procedure below. Nothing is written until you approve a preview.
    intact. Substitution applies only to merge/templated payloads; **copy-mode
    payloads are written byte-for-byte** with no substitution. No secrets are
    requested.
-5. **Preview.** Show the user, per category: destination path; create / merge /
-   overwrite; what will be backed up; and any category that will be **skipped**
-   because its requirement is unmet (e.g. status line skipped — `node` not found).
+5. **Preview.** Show the user, per category: destination/action (create / merge /
+   overwrite / install); what will be backed up; and any caveat (e.g. `node` not
+   found → the status line applies but won't render until Node is installed).
    Wait for explicit approval before writing anything.
-6. **Apply** each category whose requirement is met, **in manifest order (status
-   line first)**:
-   - Back up any existing destination file to `<destination>.bak.<unix-timestamp>`
-     first.
-   - **statusline** (copy, requires `node`): write
-     `config/statusline/statusline.js` to `${CLAUDE_HOME}/statusline.js`.
-   - **settings** (merge, requires `node`): deep-merge the resolved
-     `config/settings/settings.json` into `${CLAUDE_HOME}/settings.json` (create
-     it if absent). In Phase 1 this only wires the status line, so it shares the
-     `node` requirement.
-   - If `node` is absent: skip both, and tell the user to install Node.js LTS and
-     re-run "set me up" to enable the status line.
-7. **Verify.** For applied categories: `settings.json` must be valid JSON and its
-   `statusLine.command` must point at the resolved `statusline.js` path with
-   forward slashes; `statusline.js` must run (`node ${CLAUDE_HOME}/statusline.js`
-   with `{}` on stdin prints two lines). Report a per-category summary, including
-   anything skipped.
-8. **Done.** Tell the user to restart Claude Code to see the status line.
+6. **Apply** each category **in manifest order (status line first)**. Back up any
+   existing destination file to `<destination>.bak.<unix-timestamp>` first.
+   - **statusline** (copy): write `config/statusline/statusline.js` to
+     `${CLAUDE_HOME}/statusline.js`.
+   - **settings** (merge): deep-merge the resolved `config/settings/settings.json`
+     into `${CLAUDE_HOME}/settings.json` (create if absent) — carries the status
+     line wiring plus general prefs (model, effort, theme, the superpowers enable
+     flag, …). Applies regardless of `node`.
+   - **plugins** (install, **required**): install superpowers —
+     `claude plugin marketplace add anthropics/claude-plugins-official`, then
+     `claude plugin install superpowers@claude-plugins-official`. The
+     `enabledPlugins` flag in `settings.json` only *activates* an installed
+     plugin; it does **not** download it, so this step is what actually fetches
+     superpowers. Skip only if there's no network / `claude` CLI (report it).
+   - **Node note:** only the status line needs `node` at runtime. If `node` isn't
+     on PATH, everything still applies — the status line just won't render until
+     you install Node.js LTS.
+7. **Verify.** `settings.json` is valid JSON and its `statusLine.command` points at
+   the resolved `statusline.js` path with forward slashes; if `node` is present,
+   `statusline.js` runs (`node ${CLAUDE_HOME}/statusline.js` with `{}` on stdin
+   prints two lines). For plugins, `claude plugin list` shows
+   `superpowers@claude-plugins-official`. Report a per-category summary.
+8. **Done.** Tell the user to restart Claude Code to load the plugin and show the
+   status line.
 
 Re-running is safe: backups are taken before each overwrite/merge, and a category
 skipped for a missing requirement is simply applied on a later run once the
@@ -88,10 +99,13 @@ requirement is met.
 ## Scope notes
 
 - The **status line is the first customization step** — top of the manifest and
-  the first thing applied. Phase 1 ships the two payloads above (both serve the
-  status line). New customizations are added by dropping a payload under
-  `config/` and appending a manifest row **below** the status line — the
-  procedure does not change.
+  the first thing applied. New customizations append **below** it (settings, then
+  plugins, …). A file payload = drop it under `config/` + a `copy`/`merge` row; a
+  non-file action (installing a plugin) = an `install` row. The procedure does not
+  change.
+- **superpowers** is currently required — the `plugins` step installs it (the
+  `enabledPlugins` flag in `settings.json` only enables an already-installed
+  plugin, it doesn't fetch one).
 - **Secrets** (e.g. MCP tokens) are not handled yet; they'll be added with
   interactive prompting when the first payload that needs one is introduced. Real
   secrets are never committed to this repo.

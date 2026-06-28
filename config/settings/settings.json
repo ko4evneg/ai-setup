@@ -1,6 +1,19 @@
 {
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "model": "opus",
   "statusLine": {
     "type": "command",
     "command": "node ${CLAUDE_HOME}/statusline.js"
-  }
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true
+  },
+  "effortLevel": "xhigh",
+  "tui": "fullscreen",
+  "skipWorkflowUsageWarning": true,
+  "theme": "auto",
+  "editorMode": "normal",
+  "skipAutoPermissionPrompt": true
 }

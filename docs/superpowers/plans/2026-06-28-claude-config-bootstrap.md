@@ -26,11 +26,15 @@ The shipped `CLAUDE.md`, `README.md`, and `docs/setup-guide.md` are the source o
 truth; they extend the task code-blocks below with approved refinements made
 during execution:
 
-- **Node is optional; the status line is gated on it.** The shipped manifest has a
-  **Requires** column; when `node` is not on PATH, setup skips the status line
-  with a message instead of failing. This supersedes the Global Constraint
-  "Node.js assumed present" — the native Claude binary bundles no general-purpose
-  `node`, so Node is needed only for the status line, not for setup overall.
+- **Node is needed only to *render* the status line.** The shipped manifest has a
+  **Requires** column; if `node` isn't on PATH every category still applies — the
+  status line just won't draw. This supersedes the Global Constraint "Node.js
+  assumed present"; the native Claude binary bundles no general-purpose `node`.
+- **Three categories, not two.** `settings.json` carries real prefs (model `opus`,
+  effort `xhigh`, theme, the superpowers enable-flag, …), and a third **`plugins`**
+  step (install mode) registers `anthropics/claude-plugins-official` and installs
+  `superpowers@claude-plugins-official` — required, because the `enabledPlugins`
+  flag only enables an installed plugin, it doesn't fetch one.
 - **`${CLAUDE_HOME}` honors `$CLAUDE_CONFIG_DIR`** when set, else the OS-default
   `~/.claude`.
 - **Placeholder resolution is a literal `${CLAUDE_HOME}` swap.** `copy`-mode
