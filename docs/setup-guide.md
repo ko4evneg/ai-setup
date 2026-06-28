@@ -22,7 +22,7 @@ The authoritative procedure lives in `CLAUDE.md`; this is the human companion.
 | statusline | `config/statusline/statusline.js` | `${CLAUDE_HOME}/statusline.js` | copy    | `node` to render | Installs the two-line status-line script. |
 | settings   | `config/settings/settings.json`   | `${CLAUDE_HOME}/settings.json` | merge   | —        | Deep-merges your prefs (model, effort, theme, `statusLine` wiring, plugin enable-flags); your other keys are preserved. |
 | plugins    | `anthropics/claude-plugins-official` → `superpowers` | `${CLAUDE_HOME}/plugins/` | install | `claude` CLI + network | Installs the **superpowers** plugin (required). The settings flag only enables it; this fetches it. |
-| memory     | `config/settings/settings.local.json` | `${CLAUDE_HOME}/settings.local.json` | merge | **opt-in** | *(asked first)* Disables auto-memory in the home dir for a clean start; offers to purge existing home memory. |
+| memory     | `config/settings/settings.local.json` | `${CLAUDE_HOME}/settings.local.json` | merge | **opt-in** | *(asked first)* Disables auto-memory in the home dir for a clean start; offers to purge existing home memory. The destination is a full settings file — `permissions` / other settings can go here too (same scope as the flag). |
 
 `${CLAUDE_HOME}` is your live Claude config directory (`C:/Users/<you>/.claude` on
 Windows, `~/.claude` elsewhere), resolved automatically at setup. Paths are

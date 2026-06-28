@@ -99,11 +99,14 @@ follows the procedure below. Nothing is written until you approve a preview.
    - **memory** (merge, **opt-in** — only if the user said yes in step 5): after
      the optional purge of existing home memory, deep-merge
      `config/settings/settings.local.json` (`{ "autoMemoryEnabled": false }`) into
-     `${CLAUDE_HOME}/settings.local.json` — a clean-start home dir (auto-memory off
-     when the cwd is the home dir, on for real projects). `settings.local.json` is
-     project-*local* scope, living at this path only for the home dir. Then verify
-     auto-memory is still on in a normal project (`/memory`); if it disabled
-     globally instead, revert and disable per-project.
+     `${CLAUDE_HOME}/settings.local.json`. Goal: a clean-start home dir (auto-memory
+     off when the cwd is home). `settings.local.json` is a **full settings file** —
+     `permissions` and other system/user-wide settings can also be placed here if
+     needed. Everything in it shares **one scope**, which this step must **verify**:
+     open a normal project and check `/memory` — if auto-memory is still on, the
+     file is home-local (good — flag and any permissions apply only in home); if it
+     went off everywhere, the file is user-scope, so the flag *and* any permissions
+     apply **globally** — decide whether that's intended.
    - **Node note:** only the status line needs `node` at runtime. If `node` isn't
      on PATH, everything still applies — the status line just won't render until
      you install Node.js LTS.
@@ -129,8 +132,11 @@ requirement is met.
   `enabledPlugins` flag in `settings.json` only enables an already-installed
   plugin, it doesn't fetch one).
 - **`memory` is opt-in** — Claude asks before customizations whether to disable
-  auto-memory in the home dir (and offers to purge any existing home memory),
-  writing `autoMemoryEnabled: false` to `${CLAUDE_HOME}/settings.local.json`.
+  auto-memory in the home dir (offering to purge existing home memory first),
+  writing `autoMemoryEnabled: false` to `${CLAUDE_HOME}/settings.local.json` — a
+  full settings file, so `permissions` and other settings can live there too.
+  Whether its scope is home-only or user-wide is the one thing the step verifies;
+  everything in the file shares that scope.
 - **Secrets** (e.g. MCP tokens) are not handled yet; they'll be added with
   interactive prompting when the first payload that needs one is introduced. Real
   secrets are never committed to this repo.
