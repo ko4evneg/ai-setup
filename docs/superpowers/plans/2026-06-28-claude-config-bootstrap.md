@@ -160,7 +160,7 @@ the payloads in `config/` into your live Claude configuration directory.
 
 ## Prerequisites (manual, once per machine)
 
-1. Install **Node.js** (Claude Code requires it).
+1. Install **Node.js** (needed only for the status line).
 2. Install and **authenticate Claude Code**. A running Claude cannot install or
    authenticate itself — this is the one manual step.
 3. Clone this repo and open Claude Code with this repo as the working directory.
