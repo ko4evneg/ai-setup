@@ -20,8 +20,9 @@ const C = {
   model:  rgb(203,166,247),
   effort: rgb(88, 91, 112),
   sep:    rgb(49, 50, 68),
-  ctx:    rgb(137,180,250),
-  ctxHi:  rgb(249,226,175),
+  ctxLo:  rgb(166,227,161),  // context <30%   light green
+  ctxMid: rgb(249,226,175),  // context 30-70% light yellow
+  ctxHi:  rgb(243,139,168),  // context >70%   light red
   tokIn:  rgb(137,220,235),
   tokOut: rgb(203,166,247),
   tokTot: rgb(205,214,244),  // total = bright text
@@ -30,6 +31,9 @@ const C = {
   branch: rgb(137,180,250),
   untr:   rgb(243,139,168),
   modif:  rgb(166,227,161),
+  boxClean: rgb(166,227,161),  // git clean     soft green
+  boxMod:   rgb(249,226,175),  // git modified  soft yellow
+  boxUntr:  rgb(243,139,168),  // git untracked soft red
   verOk:  rgb(166,227,161),
   verNew: rgb(249,226,175),
   cacheR: rgb(166,227,161),  // cache read  = savings (green)
@@ -78,6 +82,16 @@ const git  = args => {
 
 const modelName = (data.model && (data.model.display_name || data.model.id)) || 'Claude';
 
+// per-model "temperature" color (cool → hot); case-insensitive match
+const mc = (() => {
+  const n = modelName.toLowerCase();
+  if (n.includes('fable') || n.includes('4.8') || n.includes('4-8')) return rgb(250,179,135); // peach — hottest
+  if (n.includes('opus'))   return rgb(249,226,175);  // gold  — warm
+  if (n.includes('sonnet')) return rgb(148,226,213);  // teal  — balanced
+  if (n.includes('haiku'))  return rgb(137,180,250);  // blue  — cool
+  return rgb(203,166,247);                            // lavender — fallback
+})();
+
 // effort: exposed as top-level effortLevel in Claude Code settings/status
 let effortRaw = data.effortLevel
   || (data.model && (data.model.thinking_effort || data.model.thinkingEffort || data.model.effort))
@@ -89,7 +103,7 @@ if (!effortRaw) {
     effortRaw = JSON.parse(fs.readFileSync(`${dir}/settings.json`, 'utf8')).effortLevel || '';
   } catch (_) {}
 }
-const effortStr = effortRaw ? ` ${C.effort}(${effortRaw})${R}` : '';
+const effortStr = effortRaw ? ` ${mc}(${effortRaw})${R}` : '';
 
 // context % — parse last usage block from transcript
 let inputTok = 0, outputTok = 0, cacheRead = 0, cacheWrite = 0;
@@ -122,11 +136,11 @@ if (!inputTok && data.cost) {
 }
 
 const ctxPct   = Math.min(100, Math.round((inputTok / 200_000) * 100));
-const ctxColor = ctxPct >= 85 ? C.ctxHi : C.ctx;
+const ctxColor = ctxPct < 30 ? C.ctxLo : ctxPct <= 70 ? C.ctxMid : C.ctxHi;
 const over200k = data.exceeds_200k_tokens || ctxPct >= 100;
 
 const l1left = [
-  `${BOLD}${C.model}${modelName}${R}${effortStr}`,
+  `${BOLD}${mc}${modelName}${R}${effortStr}`,
   `${ctxColor}Context ${ctxPct}%${R}`,
   `200K ${over200k ? '🔴' : '🟢'}`,
 ].join(SEP);
@@ -152,15 +166,17 @@ if (branch) {
   for (const l of (statusOut ? statusOut.split('\n') : [])) {
     if (!l) continue;
     if (l.startsWith('??')) untracked++;
-    else if (l[1] && l[1] !== ' ') modified++;
+    else modified++;  // any tracked change (robust to the helper's .trim())
   }
 
+  // git status as soft colored boxes: green ■ clean, yellow ■ modified, red ■ untracked
+  const box = (color, n) => `${color}■ ${n}${R}`;
   const filesStr = (!untracked && !modified)
-    ? `${C.dim}✔ clean${R}`
+    ? `${C.boxClean}■${R}`
     : [
-        untracked ? `${C.untr}?${untracked}${R}` : '',
-        modified  ? `${C.modif}!${modified}${R}`  : '',
-      ].filter(Boolean).join(' ');
+        untracked ? box(C.boxUntr, untracked) : '',
+        modified  ? box(C.boxMod,  modified)  : '',
+      ].filter(Boolean).join('   ');
 
   l2left = [
     `${BOLD}${C.repo}${repoName}${R}`,
