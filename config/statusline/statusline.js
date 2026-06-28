@@ -172,7 +172,7 @@ if (branch) {
   const root     = git('rev-parse --show-toplevel');
   const repoName = root ? root.replace(/\\/g, '/').split('/').pop() : '';
 
-  const statusOut = git('status --porcelain');
+  const statusOut = git('status --porcelain --untracked-files=all');
   let untracked = 0, modified = 0;
   for (const l of (statusOut ? statusOut.split('\n') : [])) {
     if (!l) continue;
