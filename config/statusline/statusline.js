@@ -77,7 +77,7 @@ const git  = args => {
 };
 
 // ══════════════════════════════════════════════════════════════════════════
-// LINE 1:  Model (effort)  |  Context X%  |  200K 🟢      In/Out: Xk/Xk (total: Xk)
+// LINE 1:  Model (effort)  |  Context X%  |  <window> 🟢   In/Out: Xk/Xk (total: Xk)
 // ══════════════════════════════════════════════════════════════════════════
 
 const modelName = (data.model && (data.model.display_name || data.model.id)) || 'Claude';
@@ -92,22 +92,28 @@ const mc = (() => {
   return rgb(203,166,247);                            // lavender — fallback
 })();
 
-// effort: exposed as top-level effortLevel in Claude Code settings/status
-let effortRaw = data.effortLevel
+// effort: live session value is data.effort.level — absent when the current model
+// has no effort parameter (e.g. Haiku), in which case we show nothing. We do NOT
+// fall back to the configured default: that would print effort for a model that
+// doesn't support it, and the default instead of the live value. Older top-level
+// keys are kept as fallbacks for pre-effort.level Claude Code versions.
+let effortRaw = (data.effort && data.effort.level)
+  || data.effortLevel
   || (data.model && (data.model.thinking_effort || data.model.thinkingEffort || data.model.effort))
   || data.thinking_effort || '';
-if (!effortRaw) {
-  // fall back to the configured default in settings.json
-  try {
-    const dir = process.env.CLAUDE_CONFIG_DIR || `${os.homedir()}/.claude`;
-    effortRaw = JSON.parse(fs.readFileSync(`${dir}/settings.json`, 'utf8')).effortLevel || '';
-  } catch (_) {}
-}
 const effortStr = effortRaw ? ` ${mc}(${effortRaw})${R}` : '';
 
-// context % — parse last usage block from transcript
+// context tokens — prefer Claude Code's live context_window, else parse the transcript
 let inputTok = 0, outputTok = 0, cacheRead = 0, cacheWrite = 0;
-try {
+const cw = data.context_window;
+if (cw && cw.total_input_tokens != null) {
+  const u = cw.current_usage || {};
+  cacheRead  = u.cache_read_input_tokens     || 0;
+  cacheWrite = u.cache_creation_input_tokens || 0;
+  inputTok   = cw.total_input_tokens  || 0;   // already includes cache reads + writes
+  outputTok  = cw.total_output_tokens || 0;
+}
+if (!inputTok) try {
   const tp = data.transcript_path;
   if (tp && fs.existsSync(tp)) {
     const lines = fs.readFileSync(tp, 'utf8').trim().split('\n');
@@ -135,14 +141,19 @@ if (!inputTok && data.cost) {
   outputTok  = data.cost.total_output_tokens || 0;
 }
 
-const ctxPct   = Math.min(100, Math.round((inputTok / 200_000) * 100));
+// real per-model window (200K default, 1M for extended-context models)
+const ctxWindow = (cw && cw.context_window_size) || 200_000;
+const ctxLabel  = ctxWindow >= 1_000_000
+  ? `${(ctxWindow / 1_000_000).toFixed(ctxWindow % 1_000_000 ? 1 : 0)}M`
+  : `${Math.round(ctxWindow / 1000)}K`;
+const ctxPct   = Math.min(100, Math.round((inputTok / ctxWindow) * 100));
 const ctxColor = ctxPct < 50 ? C.ctxLo : ctxPct <= 70 ? C.ctxMid : C.ctxHi;
-const over200k = data.exceeds_200k_tokens || ctxPct >= 100;
+const ctxFull  = ctxPct >= 100;
 
 const l1left = [
   `${BOLD}${mc}${modelName}${R}${effortStr}`,
   `${ctxColor}Context ${ctxPct}%${R}`,
-  `200K ${over200k ? '🔴' : '🟢'}`,
+  `${ctxLabel} ${ctxFull ? '🔴' : '🟢'}`,
 ].join(SEP);
 
 const totalTok  = inputTok + outputTok;
