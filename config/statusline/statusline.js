@@ -20,8 +20,8 @@ const C = {
   model:  rgb(203,166,247),
   effort: rgb(88, 91, 112),
   sep:    rgb(49, 50, 68),
-  ctxLo:  rgb(166,227,161),  // context <30%   light green
-  ctxMid: rgb(249,226,175),  // context 30-70% light yellow
+  ctxLo:  rgb(166,227,161),  // context <50%   light green
+  ctxMid: rgb(249,226,175),  // context 50-70% light yellow
   ctxHi:  rgb(243,139,168),  // context >70%   light red
   tokIn:  rgb(137,220,235),
   tokOut: rgb(203,166,247),
@@ -136,7 +136,7 @@ if (!inputTok && data.cost) {
 }
 
 const ctxPct   = Math.min(100, Math.round((inputTok / 200_000) * 100));
-const ctxColor = ctxPct < 30 ? C.ctxLo : ctxPct <= 70 ? C.ctxMid : C.ctxHi;
+const ctxColor = ctxPct < 50 ? C.ctxLo : ctxPct <= 70 ? C.ctxMid : C.ctxHi;
 const over200k = data.exceeds_200k_tokens || ctxPct >= 100;
 
 const l1left = [
