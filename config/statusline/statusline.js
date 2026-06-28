@@ -31,6 +31,8 @@ const C = {
   modif:  rgb(166,227,161),
   verOk:  rgb(166,227,161),
   verNew: rgb(249,226,175),
+  cacheR: rgb(166,227,161),  // cache read  = savings (green)
+  cacheW: rgb(249,226,175),  // cache write = premium (yellow)
 };
 
 // ── width helpers ──────────────────────────────────────────────────────────
@@ -77,7 +79,7 @@ const effortRaw = data.effortLevel
 const effortStr = effortRaw ? ` ${C.effort}(${effortRaw})${R}` : '';
 
 // context % — parse last usage block from transcript
-let inputTok = 0, outputTok = 0;
+let inputTok = 0, outputTok = 0, cacheRead = 0, cacheWrite = 0;
 try {
   const tp = data.transcript_path;
   if (tp && fs.existsSync(tp)) {
@@ -87,10 +89,10 @@ try {
         const u = JSON.parse(lines[i]);
         const usage = u.message && u.message.usage;
         if (usage && usage.input_tokens != null) {
-          inputTok  = (usage.input_tokens || 0)
-                    + (usage.cache_read_input_tokens    || 0)
-                    + (usage.cache_creation_input_tokens || 0);
-          outputTok = usage.output_tokens || 0;
+          cacheRead  = usage.cache_read_input_tokens     || 0;
+          cacheWrite = usage.cache_creation_input_tokens || 0;
+          inputTok   = (usage.input_tokens || 0) + cacheRead + cacheWrite;
+          outputTok  = usage.output_tokens || 0;
           break;
         }
       } catch (_) {}
@@ -100,10 +102,10 @@ try {
 
 // fall back to cumulative cost totals if transcript gave nothing
 if (!inputTok && data.cost) {
-  inputTok  = (data.cost.total_input_tokens              || 0)
-            + (data.cost.total_cache_read_input_tokens    || 0)
-            + (data.cost.total_cache_creation_input_tokens || 0);
-  outputTok = data.cost.total_output_tokens || 0;
+  cacheRead  = data.cost.total_cache_read_input_tokens     || 0;
+  cacheWrite = data.cost.total_cache_creation_input_tokens || 0;
+  inputTok   = (data.cost.total_input_tokens || 0) + cacheRead + cacheWrite;
+  outputTok  = data.cost.total_output_tokens || 0;
 }
 
 const ctxPct   = Math.min(100, Math.round((inputTok / 200_000) * 100));
@@ -116,8 +118,10 @@ const l1left = [
   `200K ${over200k ? '🔴' : '🟢'}`,
 ].join(SEP);
 
-const totalTok = inputTok + outputTok;
-const l1right = `${C.dim}In/Out: ${R}${C.tokIn}${ktok(inputTok)}${R}${C.sep}/${R}${C.tokOut}${ktok(outputTok)}${R}${C.dim}  (total: ${ktok(totalTok)})${R}`;
+const totalTok  = inputTok + outputTok;
+const readPct   = totalTok ? Math.round((cacheRead  / totalTok) * 100) : 0;
+const writePct  = totalTok ? Math.round((cacheWrite / totalTok) * 100) : 0;
+const l1right = `${C.dim}In/Out: ${R}${C.tokIn}${ktok(inputTok)}${R}${C.sep}/${R}${C.tokOut}${ktok(outputTok)}${R}${C.dim}  (total: ${ktok(totalTok)}, cache R/W: ${C.cacheR}${readPct}%${C.dim}/${C.cacheW}${writePct}%${C.dim})${R}`;
 
 // ══════════════════════════════════════════════════════════════════════════
 // LINE 2:  repo | branch | ?N !N        version: X  latest: X
