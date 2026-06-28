@@ -24,6 +24,7 @@ const C = {
   ctxHi:  rgb(249,226,175),
   tokIn:  rgb(137,220,235),
   tokOut: rgb(203,166,247),
+  tokTot: rgb(205,214,244),  // total = bright text
   dim:    rgb(69, 71, 90),
   repo:   rgb(249,226,175),
   branch: rgb(137,180,250),
@@ -54,7 +55,12 @@ const row = (left, right) => {
 };
 
 const SEP = `  ${C.sep}|${R}  `;
-const ktok = n => n >= 1000 ? `${(n / 1000).toFixed(0)}k` : String(n || 0);
+const ktok = n => {
+  n = n || 0;
+  if (n >= 1000) return `${(n / 1000).toFixed(0)}k`;
+  if (n <= 0)    return '0';
+  return `${(n / 1000).toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}k`;  // e.g. 0.1k, 0.03k
+};
 
 // ── git helper ─────────────────────────────────────────────────────────────
 const cwd = (data.workspace && data.workspace.current_dir) || data.cwd || process.cwd();
@@ -73,9 +79,16 @@ const git  = args => {
 const modelName = (data.model && (data.model.display_name || data.model.id)) || 'Claude';
 
 // effort: exposed as top-level effortLevel in Claude Code settings/status
-const effortRaw = data.effortLevel
+let effortRaw = data.effortLevel
   || (data.model && (data.model.thinking_effort || data.model.thinkingEffort || data.model.effort))
   || data.thinking_effort || '';
+if (!effortRaw) {
+  // fall back to the configured default in settings.json
+  try {
+    const dir = process.env.CLAUDE_CONFIG_DIR || `${os.homedir()}/.claude`;
+    effortRaw = JSON.parse(fs.readFileSync(`${dir}/settings.json`, 'utf8')).effortLevel || '';
+  } catch (_) {}
+}
 const effortStr = effortRaw ? ` ${C.effort}(${effortRaw})${R}` : '';
 
 // context % — parse last usage block from transcript
@@ -121,7 +134,7 @@ const l1left = [
 const totalTok  = inputTok + outputTok;
 const readPct   = totalTok ? Math.round((cacheRead  / totalTok) * 100) : 0;
 const writePct  = totalTok ? Math.round((cacheWrite / totalTok) * 100) : 0;
-const l1right = `${C.dim}In/Out: ${R}${C.tokIn}${ktok(inputTok)}${R}${C.sep}/${R}${C.tokOut}${ktok(outputTok)}${R}${C.dim}  (total: ${ktok(totalTok)}, cache R/W: ${C.cacheR}${readPct}%${C.dim}/${C.cacheW}${writePct}%${C.dim})${R}`;
+const l1right = `${C.dim}In/Out: ${R}${C.tokIn}${ktok(inputTok)}${R}${C.sep}/${R}${C.tokOut}${ktok(outputTok)}${R}${C.dim}  (total: ${C.tokTot}${ktok(totalTok)}${C.dim}, cache R/W: ${C.cacheR}${readPct}%${C.dim}/${C.cacheW}${writePct}%${C.dim})${R}`;
 
 // ══════════════════════════════════════════════════════════════════════════
 // LINE 2:  repo | branch | ?N !N        version: X  latest: X
@@ -176,12 +189,15 @@ if (!latestVer) {
   } catch (_) {}
 }
 
-const isStale    = latestVer && currentVer && latestVer !== currentVer;
-const verCurCol  = C.verOk;
-const verLatCol  = isStale ? C.verNew : C.verOk;
-const verLatText = latestVer ? `${verLatCol}${latestVer}${isStale ? ' ↑' : ''}${R}` : `${C.dim}…${R}`;
-
-const l2right = `${C.dim}version: ${R}${verCurCol}${currentVer}${R}  ${C.dim}latest: ${R}${verLatText}`;
+// show only the pending update (yellow) when out of date; otherwise gray "up to date"
+let l2right;
+if (latestVer && currentVer && latestVer !== currentVer) {
+  l2right = `${C.untr}↑ ${latestVer}${R}`;            // pending update
+} else if (latestVer && currentVer) {
+  l2right = `${C.dim}${currentVer} up to date${R}`;     // up to date
+} else {
+  l2right = `${C.dim}${currentVer || '…'}${R}`;         // latest unknown
+}
 
 // ── output ─────────────────────────────────────────────────────────────────
 process.stdout.write(row(l1left, l1right) + '\n' + row(l2left, l2right) + '\n');
