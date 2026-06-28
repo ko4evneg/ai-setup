@@ -25,9 +25,11 @@ follows the procedure below. Nothing is written until you approve a preview.
 
 | Category   | Source                            | Destination                    | Mode  | Requires                  |
 |------------|-----------------------------------|--------------------------------|-------|---------------------------|
+| aliases    | `config/aliases/claude-aliases.{ps1,sh}` | shell profile + `${CLAUDE_HOME}/` | install | a supported shell      |
 | statusline | `config/statusline/statusline.js` | `${CLAUDE_HOME}/statusline.js` | copy    | `node` to render       |
 | settings   | `config/settings/settings.json`   | `${CLAUDE_HOME}/settings.json` | merge   | —                      |
 | plugins    | `anthropics/claude-plugins-official` → `superpowers` | `${CLAUDE_HOME}/plugins/` | install | `claude` CLI + network |
+| memory     | `config/settings/settings.local.json` | `${CLAUDE_HOME}/settings.local.json` | merge | **opt-in** (asked)     |
 
 - `${CLAUDE_HOME}` is the live Claude config directory: **`$CLAUDE_CONFIG_DIR` if
   that environment variable is set**, otherwise the OS default
@@ -36,14 +38,16 @@ follows the procedure below. Nothing is written until you approve a preview.
 - **merge**: deep-merge JSON into any existing file; repo values win on
   conflicts; keep unknown local keys.
 - **copy**: overwrite the destination.
-- **install**: register the marketplace and install the plugin via the `claude`
-  CLI (not a file copy); idempotent — safe to re-run.
+- **install**: a non-file-copy action (register a marketplace + install a plugin;
+  or copy the alias file + source it from the shell profile); idempotent — safe to
+  re-run.
 - **Requires**: `node` is needed only to *render* the status line — every payload
   still applies without it (the status line just won't show until Node is on
-  PATH). The `plugins` step needs the `claude` CLI + network.
+  PATH). The `plugins` step needs the `claude` CLI + network; the `memory` step is
+  **opt-in** (Claude asks before customizations).
 - Existing destination files are backed up first.
-- **Apply order = manifest order, top-to-bottom.** The **status line is the
-  first customization step**; future customizations append below it.
+- **Apply order = manifest order, top-to-bottom.** The **`aliases` step runs
+  first**; the rest follow. New customizations append where they fit.
 
 ## Setup procedure (Claude follows this on "set me up")
 
@@ -63,12 +67,23 @@ follows the procedure below. Nothing is written until you approve a preview.
    intact. Substitution applies only to merge/templated payloads; **copy-mode
    payloads are written byte-for-byte** with no substitution. No secrets are
    requested.
-5. **Preview.** Show the user, per category: destination/action (create / merge /
-   overwrite / install); what will be backed up; and any caveat (e.g. `node` not
-   found → the status line applies but won't render until Node is installed).
-   Wait for explicit approval before writing anything.
-6. **Apply** each category **in manifest order (status line first)**. Back up any
+5. **Preview & ask.** Show the user, per category: destination/action (create /
+   merge / overwrite / install); what will be backed up; and any caveat (e.g.
+   `node` not found → the status line applies but won't render until Node is
+   installed). **Also ask whether to include the optional `memory` step** (disable
+   auto-memory in the home dir). If yes, check
+   `${CLAUDE_HOME}/projects/<home-dir-project>/memory/` for already-accumulated
+   memory and **offer to purge it**. Wait for explicit approval before writing
+   anything.
+6. **Apply** each category **in manifest order (aliases first)**. Back up any
    existing destination file to `<destination>.bak.<unix-timestamp>` first.
+   - **aliases** (install): detect the shell. Copy the matching
+     `config/aliases/claude-aliases.{ps1,sh}` to `${CLAUDE_HOME}/`, then add **one**
+     source line to the user's profile if not already present — PowerShell
+     (`$PROFILE`): `. "<resolved ${CLAUDE_HOME}>/claude-aliases.ps1"`; bash/zsh
+     (`~/.bashrc` or `~/.zshrc`, per `$SHELL`):
+     `source "<resolved>/claude-aliases.sh"`. Idempotent. Defines the 20
+     `claude<m>[<e>]` launcher functions (e.g. `claudeox` = opus + xhigh).
    - **statusline** (copy): write `config/statusline/statusline.js` to
      `${CLAUDE_HOME}/statusline.js`.
    - **settings** (merge): deep-merge the resolved `config/settings/settings.json`
@@ -81,6 +96,14 @@ follows the procedure below. Nothing is written until you approve a preview.
      `enabledPlugins` flag in `settings.json` only *activates* an installed
      plugin; it does **not** download it, so this step is what actually fetches
      superpowers. Skip only if there's no network / `claude` CLI (report it).
+   - **memory** (merge, **opt-in** — only if the user said yes in step 5): after
+     the optional purge of existing home memory, deep-merge
+     `config/settings/settings.local.json` (`{ "autoMemoryEnabled": false }`) into
+     `${CLAUDE_HOME}/settings.local.json` — a clean-start home dir (auto-memory off
+     when the cwd is the home dir, on for real projects). `settings.local.json` is
+     project-*local* scope, living at this path only for the home dir. Then verify
+     auto-memory is still on in a normal project (`/memory`); if it disabled
+     globally instead, revert and disable per-project.
    - **Node note:** only the status line needs `node` at runtime. If `node` isn't
      on PATH, everything still applies — the status line just won't render until
      you install Node.js LTS.
@@ -98,14 +121,16 @@ requirement is met.
 
 ## Scope notes
 
-- The **status line is the first customization step** — top of the manifest and
-  the first thing applied. New customizations append **below** it (settings, then
-  plugins, …). A file payload = drop it under `config/` + a `copy`/`merge` row; a
-  non-file action (installing a plugin) = an `install` row. The procedure does not
-  change.
+- **Customization steps (manifest order):** `aliases` (the `claude<m>[<e>]` shell
+  shortcuts) run **first**, then `statusline`, `settings`, `plugins`, and the
+  opt-in `memory` step. A file payload = drop it under `config/` + a `copy`/`merge`
+  row; a non-file action (install a plugin, source a profile) = an `install` row.
 - **superpowers** is currently required — the `plugins` step installs it (the
   `enabledPlugins` flag in `settings.json` only enables an already-installed
   plugin, it doesn't fetch one).
+- **`memory` is opt-in** — Claude asks before customizations whether to disable
+  auto-memory in the home dir (and offers to purge any existing home memory),
+  writing `autoMemoryEnabled: false` to `${CLAUDE_HOME}/settings.local.json`.
 - **Secrets** (e.g. MCP tokens) are not handled yet; they'll be added with
   interactive prompting when the first payload that needs one is introduced. Real
   secrets are never committed to this repo.

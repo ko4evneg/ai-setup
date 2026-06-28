@@ -46,10 +46,12 @@ minimal:
   section) plus the apply procedure — no separate `manifest.md` yet.
 - `${CLAUDE_HOME}` is the only placeholder resolved (`${OS}` only if a step needs
   it).
-- Apply three categories — `statusline.js` (copy), `settings.json` (merge; carries
-  model/effort/theme/statusLine-wiring/plugin-enable-flags), and `plugins`
-  (install superpowers via the `claude` CLI) — with timestamped backups; preview
-  before writing; verify after.
+- Apply the customization steps in order — `aliases` (install the `claude<m>[<e>]`
+  shell shortcuts), `statusline.js` (copy), `settings.json` (merge; carries
+  model/effort/theme/statusLine-wiring/plugin-enable-flags), `plugins` (install
+  superpowers via the `claude` CLI), and an opt-in `memory` step (disable
+  auto-memory in the home dir) — with timestamped backups; preview before writing;
+  verify after.
 - **`node` is needed only to *render* the status line.** Every category still
   applies without it (the bar just won't draw until Node is on PATH); settings and
   plugins don't need Node at all.

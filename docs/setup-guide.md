@@ -12,14 +12,17 @@ The authoritative procedure lives in `CLAUDE.md`; this is the human companion.
   bar. If `node` is missing, **everything still applies** — the status line just
   won't draw until Node is installed.
 - **`claude` CLI + network** for the plugins step (to install superpowers).
+- **A shell** (PowerShell, bash, or zsh) for the `claude<m>` aliases step.
 
 ## What each category does
 
 | Category   | Source                            | Destination                    | Mode    | Requires | Effect |
 |------------|-----------------------------------|--------------------------------|---------|----------|--------|
+| aliases    | `config/aliases/claude-aliases.{ps1,sh}` | shell profile + `${CLAUDE_HOME}/` | install | a supported shell | Installs 20 `claude<m>[<e>]` launcher functions (model + effort) into `$PROFILE` / `~/.bashrc` / `~/.zshrc`. |
 | statusline | `config/statusline/statusline.js` | `${CLAUDE_HOME}/statusline.js` | copy    | `node` to render | Installs the two-line status-line script. |
 | settings   | `config/settings/settings.json`   | `${CLAUDE_HOME}/settings.json` | merge   | —        | Deep-merges your prefs (model, effort, theme, `statusLine` wiring, plugin enable-flags); your other keys are preserved. |
 | plugins    | `anthropics/claude-plugins-official` → `superpowers` | `${CLAUDE_HOME}/plugins/` | install | `claude` CLI + network | Installs the **superpowers** plugin (required). The settings flag only enables it; this fetches it. |
+| memory     | `config/settings/settings.local.json` | `${CLAUDE_HOME}/settings.local.json` | merge | **opt-in** | *(asked first)* Disables auto-memory in the home dir for a clean start; offers to purge existing home memory. |
 
 `${CLAUDE_HOME}` is your live Claude config directory (`C:/Users/<you>/.claude` on
 Windows, `~/.claude` elsewhere), resolved automatically at setup. Paths are
@@ -57,6 +60,8 @@ most recent `.bak.*`.
 - **Superpowers not loaded:** confirm `claude plugin list` shows
   `superpowers@claude-plugins-official`; if not, re-run the plugins step
   (`claude plugin install superpowers@claude-plugins-official`) and restart.
+- **`claude<m>` shortcuts not found:** open a new shell (or re-source your
+  profile). The functions live in `$PROFILE` (PowerShell) or `~/.bashrc` / `~/.zshrc`.
 - **Status line doesn't appear after applying:** restart Claude Code. Confirm
   `${CLAUDE_HOME}/settings.json` has `statusLine.command` pointing at the real
   `statusline.js` path, and that `node` is on PATH.

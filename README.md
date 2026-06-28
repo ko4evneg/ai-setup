@@ -27,12 +27,17 @@ and applies it only after you approve. Existing files are backed up first.
 
 ## What it configures
 
-1. **Status line** — a two-line bar (`config/statusline/statusline.js`) wired up
+1. **Aliases** — global `claude<m>[<e>]` shell shortcuts that launch Claude with a
+   preset model + effort (e.g. `claudeo` = opus/max, `claudeox` = opus/xhigh); extra
+   args forward through. 20 functions, installed into your shell profile.
+2. **Status line** — a two-line bar (`config/statusline/statusline.js`) wired up
    via `settings.json`. Renders only when `node` is on PATH.
-2. **Settings** — your `settings.json` prefs (model, effort, theme, plugin
+3. **Settings** — your `settings.json` prefs (model, effort, theme, plugin
    enable-flags, …), deep-merged into your live config.
-3. **Plugins** — installs the **superpowers** plugin (required) from the official
+4. **Plugins** — installs the **superpowers** plugin (required) from the official
    marketplace; the settings flag only *enables* it, this step *fetches* it.
+5. **Memory clean-start** *(opt-in)* — disables Claude auto-memory in your home
+   directory so home sessions start clean; you're asked first.
 
 The set of things it configures grows over time; see `CLAUDE.md` for the live
 manifest and `docs/setup-guide.md` for details, a self-test, and troubleshooting.

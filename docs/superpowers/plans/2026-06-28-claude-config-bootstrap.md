@@ -35,6 +35,11 @@ during execution:
   step (install mode) registers `anthropics/claude-plugins-official` and installs
   `superpowers@claude-plugins-official` — required, because the `enabledPlugins`
   flag only enables an installed plugin, it doesn't fetch one.
+- **Two more steps since.** An **`aliases`** step (now first) installs 20
+  `claude<m>[<e>]` shell launcher functions (model + effort) into the user's shell
+  profile; an **opt-in `memory`** step disables auto-memory in the home dir
+  (`autoMemoryEnabled:false` in `${CLAUDE_HOME}/settings.local.json`), asked before
+  customizations with an offer to purge existing home memory.
 - **`${CLAUDE_HOME}` honors `$CLAUDE_CONFIG_DIR`** when set, else the OS-default
   `~/.claude`.
 - **Placeholder resolution is a literal `${CLAUDE_HOME}` swap.** `copy`-mode
