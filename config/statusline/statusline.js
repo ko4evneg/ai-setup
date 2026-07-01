@@ -51,8 +51,11 @@ const vlen = s => {
   return w;
 };
 
-// pad left and right content to fill the terminal width
-const termW = process.stdout.columns || 120;
+// Claude Code captures this script's stdout rather than connecting it to the
+// terminal, so process.stdout.columns/tput/cursor-movement escapes are all
+// no-ops here. Per the docs, Claude Code instead sets COLUMNS/LINES in the
+// environment before running the script (v2.1.153+) — read that.
+const termW = parseInt(process.env.COLUMNS, 10) || 120;
 const row = (left, right) => {
   const gap = Math.max(2, termW - vlen(left) - vlen(right));
   return left + ' '.repeat(gap) + right + R;
@@ -141,19 +144,22 @@ if (!inputTok && data.cost) {
   outputTok  = data.cost.total_output_tokens || 0;
 }
 
-// real per-model window (200K default, 1M for extended-context models)
+// real per-model window (200K default, 1M for extended-context models) — drives the % only
 const ctxWindow = (cw && cw.context_window_size) || 200_000;
-const ctxLabel  = ctxWindow >= 1_000_000
-  ? `${(ctxWindow / 1_000_000).toFixed(ctxWindow % 1_000_000 ? 1 : 0)}M`
-  : `${Math.round(ctxWindow / 1000)}K`;
 const ctxPct   = Math.min(100, Math.round((inputTok / ctxWindow) * 100));
 const ctxColor = ctxPct < 50 ? C.ctxLo : ctxPct <= 70 ? C.ctxMid : C.ctxHi;
-const ctxFull  = ctxPct >= 100;
+
+// the 🟢/🔴 marker is always fixed to the 200K compaction threshold, independent of
+// the model's actual window. Claude Code exposes this directly as exceeds_200k_tokens
+// (input+cache+output combined); fall back to inputTok alone if the field is absent.
+const compactFull = data.exceeds_200k_tokens != null
+  ? data.exceeds_200k_tokens
+  : inputTok >= 200_000;
 
 const l1left = [
   `${BOLD}${mc}${modelName}${R}${effortStr}`,
   `${ctxColor}Context ${ctxPct}%${R}`,
-  `${ctxLabel} ${ctxFull ? '🔴' : '🟢'}`,
+  `200K ${compactFull ? '🔴' : '🟢'}`,
 ].join(SEP);
 
 const totalTok  = inputTok + outputTok;
